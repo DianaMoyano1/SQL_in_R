@@ -11,13 +11,9 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
+## Database can be found in the following link:
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document.
-
-This assignment makes use of data provided in Assignment_01
+https://drive.google.com/file/d/1qC4XOi279gXJY_GEapFvODE1FjtbZ_H4/view?usp=sharing
 
 
 #Setting the working diectory and the connection to MYSQL Server
