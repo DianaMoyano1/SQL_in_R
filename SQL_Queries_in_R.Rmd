@@ -1,0 +1,190 @@
+---
+title: "SQL Queries in R"
+author: "Diana Moyano"
+date: "February 28, 2018"
+output:
+  word_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document.
+
+This assignment makes use of data provided in Assignment_01
+
+
+#Setting the working diectory and the connection to MYSQL Server
+```{r}
+#setwd("/Desktop/Assignment 2/")
+#getwd()
+#install.packages('RMySQL', dependencies = TRUE) --> better if installed under Packages-Install-RMySQL
+library(RMySQL)
+sqlQuery <- function (query) {
+
+  # creating DB connection object with RMysql package
+  DB <- dbConnect(MySQL(), user='root', password='data', dbname='gm_eclipse',
+        host='127.0.0.1')
+
+  # send Query to obtain result set
+  rs <- dbSendQuery(DB, query)
+
+  # get elements from result sets and convert to dataframe
+  result <- fetch(rs, -1)
+
+  # close db connection
+  dbDisconnect(DB)
+
+  # return the dataframe
+  return(result)
+}
+```
+
+
+#Example 1
+Query the total number of changes where state is ABANDONED.
+```{r}
+sqlQuery("SELECT COUNT(*), ch_status FROM t_change where ch_status='ABANDONED';")
+```
+
+
+
+#Example 2
+Query all the RECENT reviews which has 'Code-Review-2' string; which essentially means that the code(patch) was rejected. List ID and time created, and limit the query output by 20 records.
+```{r}
+sqlQuery("SELECT hist_id, hist_createdTime FROM t_history 
+WHERE hist_message LIKE '%Code-Review-2%' 
+ORDER BY hist_createdTime DESC limit 20;")
+```
+
+
+
+#Example 3
+Find the total lines of code that has been inserted to 'SystemClock.java' file across all revisons.
+```{r}
+sqlQuery("select f_fileName,sum(f_linesInserted) as InsLOC from t_file 
+WHERE f_fileName LIKE '%/SystemClock.java%'
+Group by f_fileName;")
+```
+
+
+#Q1
+For each file in the database, find the total Lines of code that has been deleted during the second revision
+```{r}
+sqlQuery("SELECT f_fileName, sum(f_linesDeleted) AS total_lines_deleted
+FROM t_file
+WHERE t_file.f_revisionId=2
+GROUP BY f_fileName
+ORDER BY total_lines_deleted DESC 
+ ;")
+```
+
+#Q2
+Display the most frequently updated files that have been modified at least 200 times.
+```{r}
+sqlQuery("SELECT f_fileName, COUNT(f_fileName) AS No_of_updates
+FROM t_file
+GROUP BY f_fileName
+HAVING No_of_updates>=200
+ORDER BY No_of_updates DESC
+ ;")
+```
+
+#Q3
+Display the total number of history messages, that have been provided by a reviwer with Author Account ID equals to "442"?.
+```{r}
+sqlQuery("SELECT hist_authorAccountId, COUNT(hist_authorAccountId) AS Total_history_messages
+FROM t_history
+GROUP BY hist_authorAccountId
+HAVING hist_authorAccountId=442
+ ;")
+```
+
+#Q4
+Display the information of the most active reviewers who provided more than 1000 comments (i.e. history messeges). List the name, account-ID and the total number of comments.
+```{r}
+sqlQuery("SELECT p.p_name, p.p_accountId, COUNT(h.hist_authorAccountId) AS No_reviews
+FROM t_people AS p
+INNER JOIN t_history AS h ON p.p_accountId=h.hist_authorAccountId
+GROUP BY p.p_name, p.p_accountId
+HAVING No_reviews>1000
+ORDER BY No_reviews DESC
+ ;")
+```
+
+#Q5
+Display the most recent 20 changes with status "MERGED"" in descending order.
+List ChangeIdNum, Project, Branch , and CreatedTime
+```{r}
+sqlQuery("SELECT id, ch_project, ch_branch, ch_createdTime
+FROM t_change
+WHERE ch_status='MERGED'
+ORDER BY ch_createdTime DESC LIMIT 20
+ ;")
+```
+
+#Q6
+Display the names of the top 10 users who have submitted the maximum number of revision-messeges in one revision-change.
+```{r}
+sqlQuery("SELECT rev_authorUsername, rev_changeId, COUNT(rev_authorUsername) AS No_revisions
+FROM t_revision
+GROUP BY rev_changeId, rev_authorUsername
+ORDER BY No_revisions DESC LIMIT 10
+ ;")
+
+```
+
+#Q7
+Display the status, id, and the comment-message of a change whose reviewer created the messege during November 2016; limit by 10.
+```{r}
+sqlQuery("SELECT c.id, c.ch_status, r.rev_message
+FROM t_change AS c
+INNER JOIN t_revision AS r ON c.id=r.rev_changeId
+WHERE EXTRACT(YEAR FROM c.ch_createdTime)=2016 AND EXTRACT(MONTH FROM c.ch_createdTime)=11
+LIMIT 10
+ ;")
+```
+
+
+
+#Q8
+List the id number and the status of all merge-able changes committed by 'Shawn Pearce';
+```{r}
+sqlQuery("SELECT c.id, c.ch_status, c.ch_mergeable, p.p_name
+FROM t_change as c
+INNER JOIN t_people AS p ON c.ch_authorAccountId=p.p_accountId
+WHERE c.ch_mergeable=1 AND p.p_name='Shawn Pearce'
+ ;")
+```
+
+
+#Q9
+List the id number from t_file where there are more than 3000 lines deleted and more than 2000 lines inserted.
+```{r}
+sqlQuery("SELECT DISTINCT id
+FROM t_file
+WHERE f_linesDeleted>3000 AND f_linesInserted>2000
+ ;")
+```
+
+#Q10
+Issue a select statement with t_change natural join with t_revision with a limit of 10 records.
+Explain what natural join did to the rows, does it make sense? and explain the difference between natural join and inner join.
+
+This clause joins two tables and it is structured in a way that common columns are displayed only once. In this case, the common column is id (same column name and type of data), which is shown at the beginning of the retreieved table. However, the "id" field in the t_change table is the key identifier for the changes made, whereas the id"" field in t_revision table is the key identified for the revisions made. In other words, id #5 under the t_change table doesn't refer to the same object as the id #5 under the t_revision table. For that reason, a NATURAL JOIN would not be suitable in this case.
+
+The difference between an inner join and a natural join is that in the former we actually specify what columns are common between the two tables (after the ON clause), whereas in the latter SQL determines what column is common based on name and type. Basically, we have more control on what is going to be retrieved when using an inner join (we rather use this clause for these two tables)
+
+```{r}
+sqlQuery("SELECT *
+FROM t_change AS c
+NATURAL JOIN t_revision AS r 
+LIMIT 10
+;")
+```
